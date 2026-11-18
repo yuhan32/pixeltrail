@@ -5,14 +5,20 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <title>星跃旅人 Pixel Trail</title>
 <style>
-  html, body { margin: 0; height: 100%; background: #0a0e18; overflow: hidden; }
+  html, body { margin: 0; height: 100%; background: #0a0e18; overflow: hidden;
+    -webkit-user-select: none; -moz-user-select: none; user-select: none;
+    -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent;
+    overscroll-behavior: none; touch-action: none; }
+  * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
   #unity-container { position: relative; width: 100%; height: 100%; }
-  #unity-canvas { width: 100%; height: 100%; display: block; background: #0a0e18; }
+  #unity-canvas { width: 100%; height: 100%; display: block; background: #0a0e18;
+    touch-action: none; -webkit-user-select: none; user-select: none; }
   #unity-loading-bar { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
     width: 240px; display: none; }
   #unity-progress-bar-empty { height: 8px; background: rgba(255,255,255,.15); border-radius: 4px; overflow: hidden; }
   #unity-progress-bar-full { height: 100%; width: 0; background: linear-gradient(90deg,#73e0d9,#ff7fb6); }
   #pt-controls { position: fixed; inset: 0; pointer-events: none; z-index: 10; display: none;
+    touch-action: none;
     font-family: system-ui, -apple-system, "Microsoft YaHei", sans-serif; user-select: none; }
   #pt-controls .cluster { position: absolute; pointer-events: none; display: flex; gap: 14px; align-items: flex-end; }
   #pt-controls .left { left: 16px; bottom: 20px; }
@@ -20,7 +26,8 @@
   #pt-controls .row { display: flex; gap: 10px; }
   #pt-controls button { pointer-events: auto; width: 74px; height: 74px; border-radius: 50%;
     border: 2px solid rgba(115,224,217,.55); background: rgba(12,18,30,.45); color: #c7f5f2;
-    font-size: 26px; font-weight: 700; touch-action: none; padding: 0; }
+    font-size: 26px; font-weight: 700; touch-action: none; padding: 0;
+    -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
   #pt-controls button.small { width: 56px; height: 56px; font-size: 15px; border-radius: 16px; }
   #pt-controls button.jump { width: 96px; height: 96px; font-size: 30px; }
   #pt-controls .climb { right: 126px; bottom: 20px; align-items: flex-end; }
@@ -96,6 +103,12 @@
       .catch(function (msg) { alert(msg); });
   };
   document.body.appendChild(script);
+
+  // 屏蔽长按菜单与文字选中（移动端长按会被识别为选择文本）
+  ["contextmenu", "selectstart", "dragstart"].forEach(function (evt) {
+    document.addEventListener(evt, function (e) { e.preventDefault(); }, { passive: false });
+  });
+  document.addEventListener("longpress", function (e) { e.preventDefault(); }, { passive: false });
 
   // 触屏按键 -> 键盘事件
   (function () {
