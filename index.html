@@ -29,7 +29,9 @@
   #pt-rotate { position: fixed; inset: 0; z-index: 20; background: #0a0e18; color: #73e0d9;
     display: none; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
     font: 18px/1.6 system-ui, "Microsoft YaHei", sans-serif; }
-  @media (orientation: portrait) and (pointer: coarse) { #pt-rotate { display: flex; } }
+  #pt-rotate .btn { margin-top: 6px; padding: 14px 30px; border-radius: 30px; border: none;
+    background: linear-gradient(90deg,#73e0d9,#ff7fb6); color: #08121a; font-size: 18px; font-weight: 700; }
+  #pt-rotate .hint { color: #8fb6c8; font-size: 12px; max-width: 260px; text-align: center; }
 </style>
 </head>
 <body>
@@ -62,8 +64,9 @@
 
   <div id="pt-rotate">
     <div style="font-size:54px">&#128241; &#8635;</div>
-    <div>请将手机横屏使用</div>
-    <div style="color:#8fb6c8;font-size:13px">点击任意位置继续</div>
+    <div>请横屏使用</div>
+    <button class="btn" id="pt-rotate-btn">全屏并横屏</button>
+    <div class="hint">若按钮无效（如 iPhone），请手动旋转手机并关闭竖屏锁定</div>
   </div>
 
 <script>
@@ -99,8 +102,42 @@
     if (!(('ontouchstart' in window) || navigator.maxTouchPoints > 0)) return;
     var controls = document.getElementById("pt-controls");
     var rotate = document.getElementById("pt-rotate");
+    var rotateBtn = document.getElementById("pt-rotate-btn");
     controls.style.display = "block";
-    if (rotate) rotate.addEventListener("click", function () { rotate.style.display = "none"; });
+
+    function isPortrait() { return window.innerHeight > window.innerWidth; }
+    function refreshRotateHint() {
+      if (!rotate) return;
+      rotate.style.display = isPortrait() ? "flex" : "none";
+    }
+    refreshRotateHint();
+    window.addEventListener("resize", refreshRotateHint);
+    window.addEventListener("orientationchange", function () { setTimeout(refreshRotateHint, 120); });
+
+    function lockLandscape() {
+      var p = null;
+      try {
+        var el = document.documentElement;
+        if (el.requestFullscreen) p = el.requestFullscreen();
+        else if (el.webkitRequestFullscreen) p = el.webkitRequestFullscreen();
+      } catch (e) {}
+      Promise.resolve(p).catch(function () {}).then(function () {
+        if (screen.orientation && screen.orientation.lock) {
+          return screen.orientation.lock("landscape").catch(function () {});
+        }
+      }).then(function () {
+        setTimeout(refreshRotateHint, 300);
+      });
+    }
+
+    if (rotateBtn) rotateBtn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      lockLandscape();
+    });
+    if (rotate) rotate.addEventListener("click", function () {
+      if (isPortrait()) lockLandscape();
+      else refreshRotateHint();
+    });
 
     function fire(btn, type) {
       var kc = parseInt(btn.getAttribute("data-kc"), 10) || 0;
