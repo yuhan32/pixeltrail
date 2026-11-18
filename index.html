@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>星跃旅人 Pixel Trail</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #0a0e18; overflow: hidden; }
+  #unity-container { position: relative; width: 100%; height: 100%; }
+  #unity-canvas { width: 100%; height: 100%; display: block; background: #0a0e18; }
+  #unity-loading-bar { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    width: 240px; display: none; }
+  #unity-progress-bar-empty { height: 8px; background: rgba(255,255,255,.15); border-radius: 4px; overflow: hidden; }
+  #unity-progress-bar-full { height: 100%; width: 0; background: linear-gradient(90deg,#73e0d9,#ff7fb6); }
+  #pt-controls { position: fixed; inset: 0; pointer-events: none; z-index: 10; display: none;
+    font-family: system-ui, -apple-system, "Microsoft YaHei", sans-serif; user-select: none; }
+  #pt-controls .cluster { position: absolute; pointer-events: none; display: flex; gap: 14px; align-items: flex-end; }
+  #pt-controls .left { left: 16px; bottom: 20px; }
+  #pt-controls .right { right: 16px; bottom: 20px; flex-direction: column; align-items: flex-end; gap: 10px; }
+  #pt-controls .row { display: flex; gap: 10px; }
+  #pt-controls button { pointer-events: auto; width: 74px; height: 74px; border-radius: 50%;
+    border: 2px solid rgba(115,224,217,.55); background: rgba(12,18,30,.45); color: #c7f5f2;
+    font-size: 26px; font-weight: 700; touch-action: none; padding: 0; }
+  #pt-controls button.small { width: 56px; height: 56px; font-size: 15px; border-radius: 16px; }
+  #pt-controls button.jump { width: 96px; height: 96px; font-size: 30px; }
+  #pt-controls .climb { right: 126px; bottom: 20px; align-items: flex-end; }
+  #pt-controls .climb button { width: 72px; height: 72px; font-size: 24px; }
+  #pt-controls button.active { background: rgba(115,224,217,.35); color: #08121a; }
+  #pt-rotate { position: fixed; inset: 0; z-index: 20; background: #0a0e18; color: #73e0d9;
+    display: none; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+    font: 18px/1.6 system-ui, "Microsoft YaHei", sans-serif; }
+  @media (orientation: portrait) and (pointer: coarse) { #pt-rotate { display: flex; } }
+</style>
+</head>
+<body>
+  <div id="unity-container">
+    <canvas id="unity-canvas" tabindex="-1"></canvas>
+    <div id="unity-loading-bar"><div id="unity-progress-bar-empty"><div id="unity-progress-bar-full"></div></div></div>
+  </div>
+
+  <div id="pt-controls">
+    <div class="cluster left">
+      <button data-key="ArrowLeft" data-code="ArrowLeft" data-kc="37">&#9664;</button>
+      <button data-key="ArrowRight" data-code="ArrowRight" data-kc="39">&#9654;</button>
+    </div>
+
+    <div class="cluster right">
+      <div class="row">
+        <button class="small" data-key="Enter" data-code="Enter" data-kc="13">开始</button>
+        <button class="small" data-key="e" data-code="KeyE" data-kc="69">使用</button>
+        <button class="small" data-key="r" data-code="KeyR" data-kc="82">重开</button>
+        <button class="small" data-key="Escape" data-code="Escape" data-kc="27">暂停</button>
+      </div>
+      <button class="jump" data-key=" " data-code="Space" data-kc="32">跳</button>
+    </div>
+
+    <div class="cluster climb">
+      <button data-key="ArrowUp" data-code="ArrowUp" data-kc="38">&#9650;</button>
+      <button data-key="ArrowDown" data-code="ArrowDown" data-kc="40">&#9660;</button>
+    </div>
+  </div>
+
+  <div id="pt-rotate">
+    <div style="font-size:54px">&#128241; &#8635;</div>
+    <div>请将手机横屏使用</div>
+    <div style="color:#8fb6c8;font-size:13px">点击任意位置继续</div>
+  </div>
+
+<script>
+  var buildUrl = "Build";
+  var loaderUrl = buildUrl + "/WebGL.loader.js";
+  var canvas = document.querySelector("#unity-canvas");
+  var loadingBar = document.querySelector("#unity-loading-bar");
+  var progressBarFull = document.querySelector("#unity-progress-bar-full");
+
+  var config = {
+    dataUrl: buildUrl + "/WebGL.data.unityweb",
+    frameworkUrl: buildUrl + "/WebGL.framework.js.unityweb",
+    codeUrl: buildUrl + "/WebGL.wasm.unityweb",
+    streamingAssetsUrl: "StreamingAssets",
+    companyName: "PixelTrail",
+    productName: "星跃旅人 Pixel Trail",
+    productVersion: "1.0"
+  };
+
+  loadingBar.style.display = "block";
+  var script = document.createElement("script");
+  script.src = loaderUrl;
+  script.onload = function () {
+    createUnityInstance(canvas, config, function (progress) {
+      progressBarFull.style.width = 100 * progress + "%";
+    }).then(function () { loadingBar.style.display = "none"; })
+      .catch(function (msg) { alert(msg); });
+  };
+  document.body.appendChild(script);
+
+  // 触屏按键 -> 键盘事件
+  (function () {
+    if (!(('ontouchstart' in window) || navigator.maxTouchPoints > 0)) return;
+    var controls = document.getElementById("pt-controls");
+    var rotate = document.getElementById("pt-rotate");
+    controls.style.display = "block";
+    if (rotate) rotate.addEventListener("click", function () { rotate.style.display = "none"; });
+
+    function fire(btn, type) {
+      var kc = parseInt(btn.getAttribute("data-kc"), 10) || 0;
+      try { canvas.focus(); } catch (e) {}
+      var ev = new KeyboardEvent(type, {
+        key: btn.getAttribute("data-key"), code: btn.getAttribute("data-code"),
+        keyCode: kc, which: kc, bubbles: true, cancelable: true, view: window
+      });
+      try {
+        Object.defineProperty(ev, "keyCode", { get: function () { return kc; } });
+        Object.defineProperty(ev, "which", { get: function () { return kc; } });
+      } catch (e) {}
+      canvas.dispatchEvent(ev);
+    }
+
+    Array.prototype.forEach.call(controls.querySelectorAll("button"), function (btn) {
+      function down(e) { e.preventDefault(); btn.classList.add("active"); fire(btn, "keydown"); }
+      function up(e) { if (e) e.preventDefault(); if (!btn.classList.contains("active")) return;
+        btn.classList.remove("active"); fire(btn, "keyup"); }
+      btn.addEventListener("pointerdown", down, { passive: false });
+      btn.addEventListener("pointerup", up, { passive: false });
+      btn.addEventListener("pointercancel", up, { passive: false });
+      btn.addEventListener("pointerleave", up, { passive: false });
+      btn.addEventListener("contextmenu", function (e) { e.preventDefault(); });
+    });
+  })();
+</script>
+</body>
+</html>
